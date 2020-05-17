@@ -1,5 +1,5 @@
 ---
-title: "VO^2^ Max Data"
+title: "VO~2~ Max Data"
 author: "Andrew Mellor"
 date: "06/05/2020"
 output:
@@ -9,16 +9,15 @@ output:
 ---
 
 ```{r Setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ## Overview
 This activity will provides the opportunity to practice building multiple linear regression models using R. This activity has been adapted from an excellent resource provided on ^[statistics.laerd.com][statistics.laerd.com](www.statistics.laerd.com). This site provides tutorials that are specific to the statistical software SPSS, however the concepts behind each of the statistical models are still relevant. I recommend checking out this site for more information on a range of different statistical concepts.
 
 ## Load required packages
-
-```{r Packages, message=FALSE}
 #Include all required packages at the start
+```{r Packages, message=FALSE, echo = TRUE}
 library(tidyverse) 
 library(ggplot2)
 library(broom)
@@ -33,12 +32,291 @@ The data we will be using for this activity can be found in the vo2-max_data.xls
 3. weight: subject weight in kilograms  
 4. heart_rate: subject average heart rate in the last 5 minutes of a 20 minute submaximal cycling test  
 5. gender: 1 = male, 0 = female  
-6. vo2_max: VO2max in ml/kg/min recorded from a maximal treadmill test  
+6. vo2_max: VO~2~max in ml/kg/min recorded from a maximal treadmill test  
 
 Each row is one subjects data.
 
 ### Read in the Data
-
-````{R Read in Data}
+#Read in the data  
+#data dir should be in the working directory
+````{R Read in Data, message=FALSE, echo = TRUE}
 df <- read_excel("data/vo2-max_data.xlsx")
 ````
+
+## Our question
+This data has been captured to develop a model to estimate VO~2~max (response variable) based on a persons age, weight, gender and heart rate during a 20 minute submaximal cycling test (explanatory/predictor variables). This would allow future participants to not have to complete a strenuous maximal running treadmill test (which might deter some participants) and rather, to just complete a less strenuous submaximal test.
+
+**We can use multiple linear regression to develop this model.**
+
+## Check the Data
+```{r Structure, message=TRUE, echo = TRUE, results='hide'}
+str(df) #provides structure of df
+
+
+head(df) #shows first 6 rows of df
+
+
+tail(df) #shows last 6 rows of df
+```
+
+
+```{r Na, message=FALSE, echo = TRUE, results='hide'}
+#Check for missing values
+sum(is.na(df)) 
+```
+
+## Data Transformation
+````{r Data Transformation1, echo = TRUE}
+df$gender <- as.factor(df$gender)
+
+str(df)
+````
+
+````{r Data Transformation2, echo = TRUE}
+#conversion of gender data to identify Male & Female
+
+df[,5] <- ifelse(df[,5] == 1, "Male", ifelse(df[,5] == 0, "Female", 99))
+
+str(df)
+````
+
+## Exploratory Analysis
+
+**Create visualisations to determine how each individual explanatory variable (age, weight, heart_rate, gender) relates to the response variable (vo2_max). Describe the strength and direction of each of these relationships.**
+
+````{r Relationship betweeen age and vo2_max, echo = TRUE, message = FALSE}
+# relationship between age and vo2max
+ggplot(data = df, aes(x = age, y = vo2_max)) +
+geom_point() +
+geom_smooth(method = "lm")
+````
+
+````{r Relationship betweeen weight and vo2_max, echo = TRUE, message = FALSE}
+# relationship between weight and vo2max
+ggplot(data = df, aes(x = weight, y = vo2_max)) +
+geom_point() +
+geom_smooth(method = "lm")
+````
+
+````{r Relationship betweeen heart_rate and vo2_max, echo = TRUE, message = FALSE}
+# relationship between heart_rate and vo2max
+ggplot(data = df, aes(x = heart_rate, y = vo2_max)) +
+geom_point() +
+geom_smooth(method = "lm")
+````
+
+````{r Relationship betweeen gender and vo2_max, echo = TRUE}
+# differences in vo2_max between genders
+ggplot(data = df, aes(x = gender, y = vo2_max)) +
+  geom_violin(aes(fill = gender))
+````
+
+**Create visualisations to show how each individual continuous explanatory variable relates to vo2_max, but this time include gender as an additional variable on each visualisation. Does this provide any new insights?**
+
+````{r Relationship betweeen gender, age and vo2_max, echo = TRUE, message = FALSE}
+# relationship between age and vo2max, with gender
+ggplot(data = df, aes(x = age, y = vo2_max, colour = gender)) +
+geom_point() +
+geom_smooth(method = "lm")
+````
+
+````{r Relationship betweeen gender, weight and vo2_max, echo = TRUE, message = FALSE}
+#relationship between weight and vo2max, with gender
+ggplot(data = df, aes(x = weight, y = vo2_max, colour = gender)) +
+geom_point() +
+geom_smooth(method = "lm")
+````
+
+````{r Relationship betweeen gender, heart_rate and vo2_max, echo = TRUE, message = FALSE}
+#relationship between heart_rate and vo2max, with gender
+ggplot(data = df, aes(x = heart_rate, y = vo2_max, colour = gender)) +
+geom_point() +
+geom_smooth(method = "lm")
+````
+
+**The exploratory data analysis stage is a good time to conduct some preliminary investigations to check if there is any evidence of multicollinearity. Create an appropriate visualisation to check for multicollinearity and describe if there is any evidence for this.**
+
+````{r Pairs, echo = TRUE}
+pairs(formula = ~ age + weight + heart_rate, data = df)
+````
+
+**There is no sign of multicollinearity as there appears to be NO linear relationship between any of the other variables.**
+
+## Multiple Linear Regression.
+
+**Conduct a linear regression to model vo2_max based on age, gender, weight and heart_rate. Interpret what the intercept and slope coefficients mean in “real world” terms.**
+
+**Question. How do you think you would interpret the intercept coefficient now that we have the categorical variable of gender? Does this change the interpretation in anyway? How would you interpret the slope coefficient for gender?**
+
+````{r Multiple Linear Regression, echo = TRUE}
+fit <- lm(vo2_max ~ age + weight + heart_rate + gender, data = df)
+tidy(fit, conf.int = TRUE)
+````
+The intercept coefficient = when all continuous explanatory variables are equal to 0, and when gender is female, 
+*Estimated VO2max is 87.83 ml/kg/min  
+*Slope coefficient for age = when age is increased by 1 year, VO2max decreases by 0.165ml/kg/min, when all other explanatory variables remain fixed  
+*Slope coefficient for weight = when weight is increased by 1kg, VO2max decreases by 0.384 ml/kg/min, when all other explanatory variables remain fixed  
+*Slope coefficient for heart_rate = when HR is increased by 1 bpm, VO2max decreases by 0.118 ml/kg/min, when all other explanatory variables remain fixed  
+*Males have a VO2max that is 13.2 ml/kg/min higher on average, than females, when all other explanatory variables remain fixed.  
+
+## Independence
+**Determine if our linear regression meets the assumption of independence of observations.**
+```` {r Independence of Observations, echo = TRUE}
+car::durbinWatsonTest(fit)
+````
+**The Durbin-Watson statistic shows: a value of approximately 2 (1.91), indicating that there is no correlation between the residuals and that we have independence of observations.**
+
+## Outliers
+**Are there any outliers?**
+````{r Outliers, echo = TRUE}
+#Check the data for outliers
+std_res <- rstandard(fit)
+points <- 1:length(std_res)
+
+ggplot(data = NULL, aes(x = points, y = std_res)) +
+geom_point(colour = "darkgreen") +
+ylim(c(-4, 4)) +
+geom_hline(yintercept = c(-3, 3), colour = "red", linetype = "dashed")
+````
+
+There may be one outlier, **beyond 3 standard deviations from 0.** But there are definitely some that are more than 2.5.
+
+````{r Outliers Labelled, echo = TRUE}
+# Put labels on the points above 2.5 SD
+
+res_labels <- if_else(abs(std_res) >= 2.5, paste(points),"")
+
+ggplot(data = NULL, aes(x = points, y = std_res, label = res_labels)) +
+geom_point(colour = "darkgreen") +
+geom_text(nudge_x =2) +
+ylim(c(-4, 4)) +
+geom_hline(yintercept = c(-3, 3), colour = "red", linetype = "dashed")
+````
+
+## Leverage Points
+**Determine if there are any high leverage points that have the potential to influence the model.**
+````{r Leverage Points, echo = TRUE}
+#Check to see if any of the potential outliers create leverage
+hats <- hatvalues(fit)
+
+ggplot(data = NULL, aes(x = points, y = hats)) +
+geom_point(colour = "darkgreen")
+````
+
+**There are no values close to 1, however there are two points that may be worth investigation.**
+
+````{r Leverage Points Label, echo = TRUE}
+hat_labels <- if_else(hats >= 0.15, paste(points), "")
+
+ggplot(data = NULL, aes(x = points, y = hats)) +
+geom_point(colour = "darkgreen") +
+geom_text(aes(label = hat_labels), nudge_x = 2)
+````
+
+
+## Influential Points
+**Determine if any of the points could be considered as points of high influence.  If you have determined there to be any points that are potentially high influence, remove these from the data and re-run your linear regression model.  Does doing so make much of a difference to the model? Don’t forget to check the R-Squared value using the summary() function as well as checking the intercept and slope coefficients.  If you find that these points do make a difference, what would be your next steps?**
+
+````{r Cooks Distance, echo = TRUE}
+#Check for influence on the linear regression by potential outliers
+cook <-cooks.distance(fit)
+cook_labels <- if_else(cook >= 0.075, paste(points), "")
+
+ggplot(data = NULL, aes(x =points, y = cook)) +
+geom_point(colour = "darkgreen")+
+geom_text(aes(label = cook_labels), nudge_x = 2)
+````
+
+**It may be necessary to re-run the model, with the removal of data points 25, 28, 32, 35, 41 & 73).**
+
+## Homoscedasticity
+**Check your model for any evidence of heteroscedasticity.**
+````{r Homoscedasticity, echo = TRUE, message = FALSE}
+#Plotting of the residuals against the fitted values
+res <- residuals(fit)
+fitted <- predict(fit)
+
+
+ggplot(df, aes(x = fitted, y = res))+
+geom_point(colour = "darkgreen")+
+geom_hline(yintercept = 0, colour = "red", linetype = "dashed")+
+geom_smooth(se = FALSE)
+````
+
+**There appears to be no evidence of heteroscedasticity.**
+
+## Normality
+**Are the residuals of your model normally distributed?**
+````{r Normality, echo = TRUE}
+#Is there a normal distribution
+
+ggplot(data =NULL, aes(x= res))+
+  geom_histogram( colour = "white", fill = "blue", binwidth = 5)
+````
+
+````{r Q-Q Plot, echo = TRUE}
+ggplot(data = NULL, aes(sample =res))+
+  stat_qq() + stat_qq_line()
+````
+
+**The data points appear normally distributed.**
+
+
+## Multicollinearity
+**Investigate whether there is evidence of multicollinearity among our explanatory variables.**
+
+#We have already checked the Pairs plots, so now lets check the Variance Inflation Factor (vif)
+```` {r Variance Inflation Factor, echo = TRUE}
+car::vif(fit)
+
+sqrt(car::vif(fit))
+````
+
+**The scores are all close to 1, so does not appear to be any multicollinearity.**
+
+## Linearity
+**Investigate the assumption of linearity.**
+````{r Partial Regression Plots, echo = TRUE}
+car::avPlots(fit)
+````
+
+
+## Interpretation
+**Reconsider our original goal of the analysis. Create an equation to estimate VO~2~ max based on our model coefficients and given values of our explanatory variables.**
+
+#estimated VO~2~ max = 87.83 + age x -0.165 + weight x -0.385 + heart rate x -0.118 + gender x 13.21
+
+Using this equation, determine what the estimated VO2max for a person that:
+*is 31 years old  
+*is female  
+*weighs 68 kgs  
+*has an average heart rate of 140 bpm in the last 5 minutes of a 20 minute submaximal cycling test  
+
+```{r Calculation, echo = TRUE}
+87.83 +31 * -0.165 + 67 * -0.385 + 140 * -0.118 + 0 *13.21
+```
+
+
+**What are the limitations of our model and can we be confident in the estimates it provides us for VO2max?**
+
+#If we run the estimated VO~2~ max this is what we get?
+```{r Applying the Model, echo = TRUE}
+est_vo2 <- mutate(df, est_vo2_max = predict(fit, newdata = df))
+
+ggplot(est_vo2, aes(est_vo2_max, vo2_max)) + 
+geom_point(colour = "darkgreen") +
+geom_abline(linetype = "dashed", colour = "red") #Reference Line for 100% Prediction
+````
+
+**There is a possibility that some of the data points need to be removed from our sample, and then re-run the model.**
+
+```{r Applying the Model2, echo = TRUE}
+
+ggplot(est_vo2, aes(est_vo2_max, vo2_max)) + 
+geom_point(colour = "darkgreen") +
+geom_abline(linetype = "dashed", colour = "red")+ #Reference Line for 100% Prediction
+geom_text(aes(label = cook_labels), nudge_x = 1)
+````
+#As expected they appear to be the same points that were identified as influential points, here we can see that they are leveraging the model.   
+
+**There is also the possibility that we should investigate non-linear models.** 
